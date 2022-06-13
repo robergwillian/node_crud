@@ -1,5 +1,4 @@
 const express = require("express");
-const { request } = require("http");
 const { v4: uuidv4 } = require("uuid");
 
 const app = express();
@@ -9,13 +8,13 @@ app.use(express.json());
 
 const customers = [];
 
-function verifyIfExisteAccountCPF(req, res, next) {
-  const { cpf } = req.headers;
+function verifyIfExisteAccountCPF(request, response, next) {
+  const { cpf } = request.headers;
 
   const customer = customers.find((customer) => customer.cpf === cpf);
 
   if (!customer) {
-    return res.status(404).json({ error: "Customer not found" });
+    return response.status(404).json({ error: "Customer not found" });
   }
 
   request.customer = customer;
@@ -23,15 +22,15 @@ function verifyIfExisteAccountCPF(req, res, next) {
   return next();
 }
 
-app.post("/account", (req, res) => {
-  const { cpf, name } = req.body;
+app.post("/account", (request, response) => {
+  const { cpf, name } = request.body;
 
   const customerAlreadyExists = customers.some(
     (customer) => customer.cpf === cpf
   );
 
   if (customerAlreadyExists) {
-    return res.status(400).json({ error: "Customer already exists" });
+    return response.status(400).json({ error: "Customer already exists" });
   }
 
   customers.push({
@@ -41,14 +40,31 @@ app.post("/account", (req, res) => {
     statement: [],
   });
 
-  return res.status(201).send();
+  return response.status(201).send();
 });
 
 // app.use(verifyIfExisteAccountCPF)
 
-app.get("/statement", verifyIfExisteAccountCPF, (req, res) => {
+app.get("/statement", verifyIfExisteAccountCPF, (request, response) => {
   const { customer } = request;
-  return res.json(customer.statement);
+  return response.json(customer.statement);
+});
+
+app.post("/deposit", verifyIfExisteAccountCPF, (request, response) => {
+  const { description, amount } = request.body;
+
+  const { customer } = request;
+
+  const statementOperation = {
+    description,
+    amount,
+    created_at: new Date(),
+    type: "credit",
+  };
+
+  console.log(statementOperation);
+  customer.statement.push(statementOperation);
+  return response.status(201).send();
 });
 
 app.listen(PORT);
